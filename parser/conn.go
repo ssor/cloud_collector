@@ -22,7 +22,10 @@ func Parse(raw []byte) (ActiveInternetConnectionArray, error) {
 
 	raw_string := string(raw)
 	lines := strings.Split(raw_string, "\n")
-	fmt.Println("lines: ", len(lines))
+	print_debug(func() {
+		fmt.Println("lines: ", len(lines))
+	})
+
 	for index, line := range lines {
 		print_debug(func() {
 			fmt.Println(index, " : ", line)
@@ -37,6 +40,9 @@ func Parse(raw []byte) (ActiveInternetConnectionArray, error) {
 }
 
 func parseConnection(raw string) *ActiveInternetConnection {
+	if len(raw) <= 0 {
+		return nil
+	}
 	items := strings.Split(raw, " ")
 
 	items_no_space := []string{}
@@ -47,8 +53,9 @@ func parseConnection(raw string) *ActiveInternetConnection {
 		}
 	}
 
-	if len(items_no_space) != 7 {
+	if len(items_no_space) < 7 {
 		fmt.Println("data format error: ", raw)
+		return nil
 	}
 
 	print_debug(func() {
@@ -56,6 +63,10 @@ func parseConnection(raw string) *ActiveInternetConnection {
 			fmt.Println(index, " -> ", item)
 		}
 	})
+
+	if len(items_no_space) < 6 {
+		return nil
+	}
 
 	localhost_and_port := strings.SplitN(items_no_space[3], ":", 2)
 	foreign_host_and_port := strings.SplitN(items_no_space[4], ":", 2)

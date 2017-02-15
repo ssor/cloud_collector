@@ -1,7 +1,7 @@
 package parser
 
 var (
-	DebugMode = true
+	DebugMode = false
 )
 
 func print_debug(f func()) {

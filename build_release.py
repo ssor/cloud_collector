@@ -1,6 +1,11 @@
 import os
 import shutil
 
+# set files and paths that should be exclued from release files
+ignoredDirs = ["parser", "data", "release"]
+ignoredFiles = ["build_release.py", "main.go", "README.md", "conf/config.json"]
+ignoredPaths = []
+
 if os.path.exists("release") == False:
 	os.mkdir("release")
 
@@ -39,12 +44,6 @@ def hasHidePath(path):
 
 
 
-# set files and paths that should be exclued from release files
-ignoredDirs = ["parser", "data", "release"]
-ignoredFiles = ["build_release.py", "main.go", "README.md", "conf/config.json"]
-
-
-ignoredPaths = []
 
 for d in ignoredDirs:
 	ignoredPaths.append(os.path.join(dirSrc, d))
@@ -123,31 +122,6 @@ def buildRelease():
 						raise e
 
 
-	print("--------------------------------------------")
-	print("build OK")
-
 print("[OK] copying files ...")
 buildRelease()
-print("[OK] push binary file to git ...")
 
-
-code = os.system("cd release")
-if code > 0:
-	raise ValueError("cd error")
-
-os.system("pwd")
-exit
-
-code = os.system("git add --all")
-if code > 0:
-	raise ValueError("git add error")
-
-code = os.system('git commit -m "new build" ')
-if code > 0:
-	raise ValueError("commit error")
-
-code = os.system('git push origin master')
-if code > 0:
-	raise ValueError("push error")
-	
-print("[OK] all done")

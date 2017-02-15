@@ -29,7 +29,7 @@ func main() {
 			fmt.Println("[ERR] Command err: ", err)
 			return
 		}
-		fmt.Println("[OK] ", string(out)[:50])
+		fmt.Println("[OK] ", string(out)[:500])
 
 		connections, err := parser.Parse(out)
 		if err != nil {
@@ -42,6 +42,7 @@ func main() {
 		for key, count := range statistics {
 			fmt.Println("conn: ", key, " -> ", count)
 		}
+		fmt.Println("*********************************")
 	}
 	do_statistics(cmd)
 	// go RunTask(do_statistics, time.Second*30)
