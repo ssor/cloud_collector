@@ -1,58 +1,63 @@
 package main
 
 import (
-	"flag"
-	"os"
-
-	"strings"
-
 	"fmt"
+	"os"
+	"os/exec"
 
-	"gopkg.in/gomail.v2"
+	"time"
+
+	"github.com/ssor/cloud_collector/parser"
+	"github.com/ssor/config"
 )
 
-var (
-	attach_file = flag.String("a", "", "attached file, only one")
-	to_address  = flag.String("to", "zhang", "Address to mail to. If no host is set, @mfer.com.cn will be appended. eg. zhangsan will be zhangsan@mfer.com.cn")
-	body        = flag.String("body", "", "mail body, default is empty")
-)
+var ()
 
 func main() {
-	flag.Parse()
-	if flag.Parsed() == false {
-		flag.PrintDefaults()
+	config_info, err := config.LoadConfig("./conf/config.json")
+	if err != nil {
+		fmt.Println("[ERR] load config file err: ", err)
 		return
 	}
+	//netstat -apn | grep ESTABLISHED
+	cmd := config_info.Get("cmd").(string)
 
-	if len(*to_address) > 0 {
-		if strings.Contains(*to_address, "@") == false {
-			*to_address = *to_address + "@mfer.com.cn"
-			fmt.Println("[OK] target address will be ", *to_address)
-		}
-	}
+	do_statistics := func(cmd string) {
 
-	m := gomail.NewMessage()
-	m.SetHeader("From", "zhoubao@mfer.com.cn")
-	m.SetHeader("To", *to_address)
-	// m.SetAddressHeader("Cc", "dan@example.com", "Dan")
-	m.SetHeader("Subject", "New File Arrived")
-	m.SetBody("text/plain", *body)
-	if len(*attach_file) > 0 {
-		if IsFileExist(*attach_file) == false {
-			fmt.Println("[ERR] attached file no found")
+		out, err := exec.Command(cmd).Output()
+		if err != nil {
+			fmt.Println("[ERR] Command err: ", err)
 			return
 		}
-		m.Attach(*attach_file)
+		fmt.Println("[OK] ", string(out)[:50])
+
+		connections, err := parser.Parse(out)
+		if err != nil {
+			fmt.Println("[ERR] parse data err: ", err)
+			return
+		}
+
+		statistics := parser.New_MongoConnectionTree().SortToTree(connections).ConnStatistics()
+		fmt.Println("*********** result: *************")
+		for key, count := range statistics {
+			fmt.Println("conn: ", key, " -> ", count)
+		}
 	}
+	do_statistics(cmd)
+	// go RunTask(do_statistics, time.Second*30)
+	// fmt.Printf("The date is %s\n", out)
+}
 
-	d := gomail.NewDialer("smtp.mxhichina.com", 587, "zhoubao@mfer.com.cn", "Xsb123456")
-
-	// Send the email to Bob, Cora and Dan.
-	if err := d.DialAndSend(m); err != nil {
-		fmt.Println("[ERR] send email err: ", err)
+func RunTask(f func(), duration time.Duration) {
+	if f == nil {
 		return
 	}
-	fmt.Println("[OK] Send email OK")
+
+	ticker := time.NewTicker(duration)
+	for {
+		<-ticker.C
+		f()
+	}
 }
 
 // exists returns whether the given file or directory exists or not

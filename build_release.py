@@ -8,9 +8,9 @@ print("[OK] bulid release tool start...")
 
 print("[OK] compiling go ...")
 
-code = os.system("GOOS=linux GOARCH=amd64 go build -o ./release/mailit_linux64 main.go")
+code = os.system("GOOS=linux GOARCH=amd64 go build -o ./release/collector_linux64 main.go")
 if code > 0:
-	raise ValueError("build userDataRecv error")
+	raise ValueError("build error")
 
 dirSrc = "./"
 dirDest = "./release"
@@ -40,7 +40,7 @@ def hasHidePath(path):
 
 
 # set files and paths that should be exclued from release files
-ignoredDirs = ["controller", "libs", "models", "release", "tests", "api", "router", "core_manager", "files", "test"]
+ignoredDirs = ["parser", "data", "release"]
 ignoredFiles = ["build_release.py", "main.go", "README.md", "conf/config.json"]
 
 
@@ -128,3 +128,23 @@ def buildRelease():
 
 print("[OK] copying files ...")
 buildRelease()
+print("[OK] push binary file to git ...")
+
+
+code = os.system("cd release")
+if code > 0:
+	raise ValueError("cd error")
+
+code = os.system("git add --all")
+if code > 0:
+	raise ValueError("git add error")
+
+code = os.system('git commit -m "new build" ')
+if code > 0:
+	raise ValueError("commit error")
+
+code = os.system('git push ')
+if code > 0:
+	raise ValueError("push error")
+	
+print("[OK] all done")
