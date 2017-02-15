@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,10 +12,7 @@ import (
 
 	"net/http"
 
-	"encoding/json"
-
 	"github.com/davecgh/go-spew/spew"
-	"github.com/parnurzeal/gorequest"
 	"github.com/ssor/cloud_collector/parser"
 	"github.com/ssor/config"
 )
@@ -70,33 +69,35 @@ func DoMongoConnStatistics(cmd string) map[string]int {
 
 func PushStatisticsToMonitor(statistics map[string]int) {
 	fmt.Println("*********** result: *************")
+	messages := []*FalconMessage{}
+	timestamp := int(time.Now().Unix())
 	for key, count := range statistics {
 		fmt.Println("conn: ", key, " -> ", count)
 
-		msg := New_FalconMessage("www.exam", "conn_mongo_"+key, int(time.Now().Unix()), 60, count)
-		json_str, err := json.Marshal(msg)
-		if err != nil {
-			fmt.Println("[ERR] marshal err: ", err)
-			continue
-		}
-
-		request := gorequest.New()
-		resp, _, errs := request.Post("http://127.0.0.1:1988/v1/push").Send(string(json_str)).End()
-		if errs != nil {
-			fmt.Println("[ERR] post data to monitor err: ", errs)
-			fmt.Println("[TIP]", string(json_str))
-			spew.Dump(msg)
-			continue
-		}
-
-		if resp.StatusCode == http.StatusOK {
-			fmt.Println("[OK] post ", key, " : ", count, " success")
-		} else {
-			fmt.Println("[ERR] post resp: ")
-			fmt.Println("[TIP]", string(json_str))
-			spew.Dump(resp)
-		}
+		msg := New_FalconMessage("www.exam", "conn_mongo_"+key, timestamp, 60, count)
+		messages = append(messages, msg)
 	}
+
+	json_bs, err := json.Marshal(messages)
+	if err != nil {
+		fmt.Println("[ERR] marshal err: ", err)
+		spew.Dump(messages)
+		return
+	}
+
+	contentReader := bytes.NewReader(json_bs)
+	req, _ := http.NewRequest("POST", "http://127.0.0.1:1988/v1/push", contentReader)
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	if resp.StatusCode == http.StatusOK {
+		fmt.Println("[OK] post  success")
+	} else {
+		fmt.Println("[ERR] post resp: ")
+		fmt.Println(string(json_bs))
+		spew.Dump(resp)
+	}
+
 	fmt.Println("*********************************")
 }
 
