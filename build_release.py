@@ -143,7 +143,7 @@ code = os.system('git commit -m "new build" ')
 if code > 0:
 	raise ValueError("commit error")
 
-code = os.system('git push ')
+code = os.system('git push origin master')
 if code > 0:
 	raise ValueError("push error")
 	
