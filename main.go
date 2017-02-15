@@ -17,7 +17,9 @@ import (
 	"github.com/ssor/config"
 )
 
-var ()
+var (
+	endPoint string
+)
 
 func main() {
 	config_info, err := config.LoadConfig("./conf/config.json")
@@ -26,6 +28,12 @@ func main() {
 		return
 	}
 	cmd := config_info.Get("cmd").(string)
+
+	endPoint = config_info.Get("endpoint").(string)
+	if len(endPoint) <= 0 {
+		fmt.Println("[ERR] endPoint setting err: ", err)
+		return
+	}
 
 	f := func() {
 		statistics := DoMongoConnStatistics(cmd)
@@ -74,7 +82,7 @@ func PushStatisticsToMonitor(statistics map[string]int) {
 	for key, count := range statistics {
 		fmt.Println("conn: ", key, " -> ", count)
 
-		msg := New_FalconMessage("www.exam", "conn_mongo_"+key, timestamp, 60, count)
+		msg := New_FalconMessage(endPoint, "conn_mongo_"+key, timestamp, 60, count)
 		messages = append(messages, msg)
 	}
 
