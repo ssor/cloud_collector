@@ -135,6 +135,9 @@ code = os.system("cd release")
 if code > 0:
 	raise ValueError("cd error")
 
+os.system("pwd")
+exit
+
 code = os.system("git add --all")
 if code > 0:
 	raise ValueError("git add error")
