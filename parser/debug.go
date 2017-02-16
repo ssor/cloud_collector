@@ -2,6 +2,7 @@ package parser
 
 var (
 	DebugMode = false
+	// DebugMode = true
 )
 
 func print_debug(f func()) {
