@@ -25,19 +25,19 @@ func TestParseLog(t *testing.T) {
 	if len(statistics) != 3 {
 		t.Fatalf("there should be %d programs", 3)
 	}
-	if count, ok := statistics["xsbexam_linux"]; ok == false {
-		t.Fatalf("there should be a xsbexam_linux")
+	if count, ok := statistics["xsbexam"]; ok == false {
+		t.Fatalf("there should be a xsbexam")
 	} else {
 		if count != 1 {
 			t.Fatalf("there should be 1 connections for xsbexam_linux")
 		}
 	}
 
-	if count, ok := statistics["xsbaccount_li"]; ok == false {
+	if count, ok := statistics["xsbaccount"]; ok == false {
 		t.Fatalf("there should be a xsbaccount_li")
 	} else {
 		if count != 6 {
-			t.Fatalf("there should be 6 connections for xsbaccount_li")
+			t.Fatalf("there should be 6 connections for xsbaccount")
 		}
 	}
 }
