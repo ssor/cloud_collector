@@ -17,9 +17,7 @@ import (
 	"github.com/ssor/config"
 )
 
-var (
-	endPoint string
-)
+var ()
 
 func main() {
 	config_info, err := config.LoadConfig("./conf/config.json")
@@ -29,7 +27,7 @@ func main() {
 	}
 	cmd := config_info.Get("cmd").(string)
 
-	endPoint = config_info.Get("endpoint").(string)
+	endPoint := config_info.Get("endpoint").(string)
 	if len(endPoint) <= 0 {
 		fmt.Println("[ERR] endPoint setting err: ", err)
 		return
@@ -38,7 +36,7 @@ func main() {
 	f := func() {
 		statistics := DoMongoConnStatistics(cmd)
 		if statistics != nil {
-			PushStatisticsToMonitor(statistics)
+			PushStatisticsToMonitor(statistics, endPoint, "conn_mongo_")
 		}
 	}
 	go RunTask(f, time.Second*60)
@@ -75,14 +73,14 @@ func DoMongoConnStatistics(cmd string) map[string]int {
 
 }
 
-func PushStatisticsToMonitor(statistics map[string]int) {
+func PushStatisticsToMonitor(statistics map[string]int, endPoint, metricPrefix string) {
 	fmt.Println("*********** result: *************")
 	messages := []*FalconMessage{}
 	timestamp := int(time.Now().Unix())
 	for key, count := range statistics {
 		fmt.Println("conn: ", key, " -> ", count)
 
-		msg := New_FalconMessage(endPoint, "conn_mongo_"+key, timestamp, 60, count)
+		msg := New_FalconMessage(endPoint, metricPrefix+key, timestamp, 60, count)
 		messages = append(messages, msg)
 	}
 
