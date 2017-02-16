@@ -74,9 +74,10 @@ func DoMongoConnStatistics(cmd string) map[string]int {
 }
 
 func PushStatisticsToMonitor(statistics map[string]int, endPoint, metricPrefix string) {
-	fmt.Println("*********** result: *************")
+	now := time.Now()
+	fmt.Println("*********** result (", now.Format(time.RFC3339), "): *************")
 	messages := []*FalconMessage{}
-	timestamp := int(time.Now().Unix())
+	timestamp := int(now.Unix())
 	for key, count := range statistics {
 		fmt.Println("conn: ", key, " -> ", count)
 
@@ -104,7 +105,7 @@ func PushStatisticsToMonitor(statistics map[string]int, endPoint, metricPrefix s
 		spew.Dump(resp)
 	}
 
-	fmt.Println("*********************************")
+	fmt.Println("******************************************************************")
 }
 
 func RunTask(f func(), duration time.Duration) {
