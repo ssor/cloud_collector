@@ -73,8 +73,9 @@ func parseConnection(raw string) *ActiveInternetConnection {
 	program_name := strings.Replace(items_no_space[6], "-", "", 1)
 	if len(program_name) > 0 {
 		pid_split_index := strings.Index(program_name, "/") // trim 17039/xsbaccount_li to xsbaccount_li
+		underscord_index := strings.Index(program_name, "_")
 		if pid_split_index > 0 {
-			program_name = program_name[pid_split_index+1:]
+			program_name = program_name[pid_split_index+1 : underscord_index]
 		}
 	}
 
