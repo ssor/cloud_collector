@@ -60,7 +60,13 @@ func DoMongoConnStatistics(cmd string) map[string]int {
 		fmt.Println("[ERR] Command err: ", err)
 		return nil
 	}
-	fmt.Println("[OK] ", string(out)[:500])
+	if out != nil {
+		if len(out) > 500 {
+			fmt.Println("[OK] ", string(out)[:500])
+		} else {
+			fmt.Println("[OK] ", string(out))
+		}
+	}
 
 	connections, err := parser.Parse(out)
 	if err != nil {
