@@ -96,7 +96,12 @@ func PushStatisticsToMonitor(statistics map[string]int, endPoint, metricPrefix s
 	req, _ := http.NewRequest("POST", "http://127.0.0.1:1988/v1/push", contentReader)
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("[ERR] Post data err: ", err)
+		fmt.Println(string(json_bs))
+		return
+	}
 	if resp.StatusCode == http.StatusOK {
 		fmt.Println("[OK] post  success")
 	} else {
