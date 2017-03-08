@@ -69,9 +69,12 @@ func main() {
 		}
 	}
 
+	metricsList := metrics.([]string)
 	for index, cmd := range cmds.([]string) {
+		currentCmd := cmd
+		currentMetric := metricsList[index]
 		go RunTask(func() {
-			f(cmd, metrics.([]string)[index])
+			f(currentCmd, currentMetric)
 		}, time.Second*time.Duration(taskInterval))
 	}
 
@@ -94,7 +97,7 @@ func truncatePrefix(raw string) (string, string) {
 }
 
 func DoConnStatistics(cmd string) map[string]int {
-	fmt.Println("[OK] start statistics ...")
+	fmt.Println("[OK] start statistics for ", cmd)
 	var statistics map[string]int
 
 	out, err := exec.Command(cmd).Output()
@@ -102,13 +105,13 @@ func DoConnStatistics(cmd string) map[string]int {
 		fmt.Println("[ERR] Command err: ", err)
 		return nil
 	}
-	if out != nil {
-		if len(out) > 500 {
-			fmt.Println("[OK] ", string(out)[:500])
-		} else {
-			fmt.Println("[OK] ", string(out))
-		}
-	}
+	// if out != nil {
+	// 	if len(out) > 500 {
+	// 		fmt.Println("[OK] ", string(out)[:500])
+	// 	} else {
+	// 		fmt.Println("[OK] ", string(out))
+	// 	}
+	// }
 
 	raw := string(out)
 	prefix, left := truncatePrefix(raw)
@@ -144,12 +147,14 @@ func doStatisticsOfMongoConn(raw string) map[string]int {
 func splitHostAndCount(raw string) (string, int, error) {
 	list := strings.Split(raw, "->")
 	if len(list) < 2 {
+		spew.Dump(raw)
 		return "", -1, errors.New("data format error")
 	}
 
 	count, err := strconv.Atoi(list[1])
 	if err != nil {
 		fmt.Println("[Tip] not number for ", list[1])
+		spew.Dump(raw)
 		return "", -1, errors.New("data format error")
 	}
 	return list[0], count, nil
