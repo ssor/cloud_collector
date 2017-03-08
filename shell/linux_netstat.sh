@@ -1,3 +1,4 @@
 #!/bin/bash
 
-sudo netstat -apn | grep ESTABLISHED | grep 27017
+result=`sudo netstat -apn | grep ESTABLISHED | grep 27017`
+echo "netstat:"${result}

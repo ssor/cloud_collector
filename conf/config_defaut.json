@@ -1,4 +1,6 @@
 {
-    "cmd": "1",
-    "endpoint":"123"
+    "cmds": ["./shell/mongostat.sh", "./shell/linux_netstat.sh"],
+    "metrics": ["mongo_tatal_", "conn_mongo_"],
+    "interval": 60,
+    "endpoint": "www"
 }

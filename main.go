@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,8 +13,12 @@ import (
 
 	"net/http"
 
+	"strings"
+
+	"strconv"
+
 	"github.com/davecgh/go-spew/spew"
-	"github.com/ssor/cloud_collector/parser"
+	"github.com/ssor/cloud_collector/conn_parser"
 	"github.com/ssor/config"
 )
 
@@ -25,24 +30,52 @@ func main() {
 		fmt.Println("[ERR] load config file err: ", err)
 		return
 	}
-	cmd := config_info.Get("cmd").(string)
-
-	endPoint := config_info.Get("endpoint").(string)
-	if len(endPoint) <= 0 {
-		fmt.Println("[ERR] endPoint setting err: ", err)
+	cmds := config_info.Get("cmds")
+	if cmds == nil {
+		fmt.Println("[ERR] need cmds set")
 		return
 	}
+	metrics := config_info.Get("metrics")
+	if metrics == nil {
+		fmt.Println("[ERR] need metrics set")
+		return
+	}
+	if len(metrics.([]string)) != len(cmds.([]string)) {
+		fmt.Println("[ERR] cmds and metrics not in pairs")
+		return
+	}
+	endPoint := ""
+	endPointRaw := config_info.Get("endpoint")
+	if (endPointRaw) == nil {
+		fmt.Println("[ERR] need endPoint ")
+		return
+	} else {
+		endPoint = endPointRaw.(string)
+	}
 
-	f := func() {
-		statistics := DoMongoConnStatistics(cmd)
+	taskInterval := 60
+	interval := config_info.Get("interval")
+	if interval == nil {
+		fmt.Println("[ERR] interval not set, will use default 60 seconde")
+	} else {
+		taskInterval = interval.(int)
+	}
+
+	f := func(cmd, metric string) {
+		statistics := DoConnStatistics(cmd)
 		if statistics != nil {
-			PushStatisticsToMonitor(statistics, endPoint, "conn_mongo_")
+			PushStatisticsToMonitor(statistics, endPoint, metric)
+			// showStatistics(statistics, endPoint, metric)
 		}
 	}
-	go RunTask(f, time.Second*60)
+
+	for index, cmd := range cmds.([]string) {
+		go RunTask(func() {
+			f(cmd, metrics.([]string)[index])
+		}, time.Second*time.Duration(taskInterval))
+	}
 
 	fmt.Println("[OK] start task")
-	f() // do one time on start
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -52,8 +85,17 @@ func main() {
 	fmt.Println("[OK] Quit")
 }
 
-func DoMongoConnStatistics(cmd string) map[string]int {
+func truncatePrefix(raw string) (string, string) {
+	index := strings.Index(raw, ":::")
+	if index < 0 {
+		return "", ""
+	}
+	return raw[:index], raw[index+3:]
+}
+
+func DoConnStatistics(cmd string) map[string]int {
 	fmt.Println("[OK] start statistics ...")
+	var statistics map[string]int
 
 	out, err := exec.Command(cmd).Output()
 	if err != nil {
@@ -68,24 +110,90 @@ func DoMongoConnStatistics(cmd string) map[string]int {
 		}
 	}
 
-	connections, err := parser.Parse(out)
+	raw := string(out)
+	prefix, left := truncatePrefix(raw)
+	switch prefix {
+	case "netstat":
+		statistics = doStatisticsConnectToMongo([]byte(left))
+	case "mongostat":
+		statistics = doStatisticsOfMongoConn(left)
+	}
+	return statistics
+
+}
+
+func doStatisticsOfMongoConn(raw string) map[string]int {
+	hostCounts := strings.Split(raw, "|")
+	// spew.Dump(hostCounts)
+	if len(hostCounts) <= 0 {
+		spew.Dump(raw)
+		return nil
+	}
+	statistics := make(map[string]int)
+	for _, hostCount := range hostCounts {
+		host, count, err := splitHostAndCount(hostCount)
+		if err != nil {
+			fmt.Println("[ERR] ", err)
+			continue
+		}
+		statistics[host] = count
+	}
+	return statistics
+}
+
+func splitHostAndCount(raw string) (string, int, error) {
+	list := strings.Split(raw, "->")
+	if len(list) < 2 {
+		return "", -1, errors.New("data format error")
+	}
+
+	count, err := strconv.Atoi(list[1])
+	if err != nil {
+		fmt.Println("[Tip] not number for ", list[1])
+		return "", -1, errors.New("data format error")
+	}
+	return list[0], count, nil
+}
+
+func doStatisticsConnectToMongo(raw []byte) map[string]int {
+	connections, err := conn_parser.Parse(raw)
 	if err != nil {
 		fmt.Println("[ERR] parse data err: ", err)
 		return nil
 	}
 
-	statistics := parser.New_MongoConnectionTree().SortToTree(connections).ConnStatistics()
-	return statistics
-
+	isConnectingToMongo := func(port interface{}) bool {
+		if port == nil {
+			return false
+		}
+		return port == "27017"
+	}
+	return conn_parser.NewConnectionTree(isConnectingToMongo).SortToTree(connections).ConnStatistics()
 }
 
+func showStatistics(statistics map[string]int, endPoint, metricPrefix string) {
+	if statistics == nil {
+		fmt.Println("[Tip] no statistics to push")
+		return
+	}
+
+	fmt.Println("endpoint: ", endPoint)
+
+	for key, count := range statistics {
+		fmt.Println("metric : ", metricPrefix+key, " -> ", count)
+	}
+}
 func PushStatisticsToMonitor(statistics map[string]int, endPoint, metricPrefix string) {
+	if statistics == nil {
+		fmt.Println("[Tip] no statistics to push")
+		return
+	}
 	now := time.Now()
 	fmt.Println("*********** result (", now.Format(time.RFC3339), "): *************")
 	messages := []*FalconMessage{}
 	timestamp := int(now.Unix())
 	for key, count := range statistics {
-		fmt.Println("conn: ", key, " -> ", count)
+		fmt.Println(": ", key, " -> ", count)
 
 		msg := New_FalconMessage(endPoint, metricPrefix+key, timestamp, 60, count)
 		messages = append(messages, msg)
@@ -126,8 +234,10 @@ func RunTask(f func(), duration time.Duration) {
 
 	ticker := time.NewTicker(duration)
 	for {
-		<-ticker.C
-		f()
+		select {
+		case <-ticker.C:
+			f()
+		}
 	}
 }
 

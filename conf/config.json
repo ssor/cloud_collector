@@ -1,3 +1,6 @@
 {
-    "cmd": "./shell/mac_netstat.sh"
+    "cmds": ["./shell/mongostat.sh"],
+    "metrics": ["mongo_total_"],
+    "interval": 60,
+    "endpoint": "123"
 }

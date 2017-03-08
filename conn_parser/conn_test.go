@@ -1,12 +1,32 @@
-package parser
+package conn_parser
 
 import (
 	"io/ioutil"
+	"os/exec"
+	"strings"
 	"testing"
 )
 
+func TestShell(t *testing.T) {
+
+	out, err := exec.Command("../shell/macos_netstat.sh").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(out))
+	raw := string(out)
+	index := strings.Index(raw, ":::")
+	if index < 0 {
+		t.Fatal("should has prefix")
+	}
+	prefix := raw[:index]
+	if prefix != "netstat" {
+		t.Fatalf("prefix is %s,  != netstat", prefix)
+	}
+}
+
 func TestParseLog(t *testing.T) {
-	raw, err := ioutil.ReadFile("../data/mongo_conn.log")
+	raw, err := ioutil.ReadFile("testdata/mongo_conn.log")
 	if err != nil {
 		t.Log("read file error: ", err)
 		t.FailNow()
@@ -21,7 +41,10 @@ func TestParseLog(t *testing.T) {
 		t.Fatalf("there should be %d connections", 10)
 	}
 
-	statistics := New_MongoConnectionTree().SortToTree(connections).ConnStatistics()
+	isConnectingToMongo := func(port interface{}) bool {
+		return port == "27017"
+	}
+	statistics := NewConnectionTree(isConnectingToMongo).SortToTree(connections).ConnStatistics()
 	if len(statistics) != 3 {
 		t.Fatalf("there should be %d programs", 3)
 	}
