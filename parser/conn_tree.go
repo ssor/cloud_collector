@@ -1,10 +1,13 @@
-package conn_parser
+package parser
 
 // type ConnectionTree struct {
 // 	Tree map[string]*ActiveInternetConnection
 // }
 
-func IsConnectingToMongo(port string) bool {
+func IsConnectingToMongo(port interface{}) bool {
+	if port == nil {
+		return false
+	}
 	return port == "27017"
 }
 

@@ -1,4 +1,4 @@
-package conn_parser
+package parser
 
 import (
 	"fmt"
@@ -17,11 +17,11 @@ type ActiveInternetConnection struct {
 
 type ActiveInternetConnectionArray []*ActiveInternetConnection
 
-func Parse(raw []byte) (ActiveInternetConnectionArray, error) {
+// ParseConnections accept raw data and parse it to relative statistic results
+func ParseConnections(raw string) (ActiveInternetConnectionArray, error) {
 	connections := ActiveInternetConnectionArray{}
 
-	raw_string := string(raw)
-	lines := strings.Split(raw_string, "\n")
+	lines := strings.Split(raw, "\n")
 	print_debug(func() {
 		fmt.Println("lines: ", len(lines))
 	})
@@ -30,7 +30,7 @@ func Parse(raw []byte) (ActiveInternetConnectionArray, error) {
 		print_debug(func() {
 			fmt.Println(index, " : ", line)
 		})
-		conn := parseConnection(line)
+		conn := parseOneConnection(line)
 		if conn != nil {
 			connections = append(connections, conn)
 		}
@@ -39,7 +39,7 @@ func Parse(raw []byte) (ActiveInternetConnectionArray, error) {
 	return connections, nil
 }
 
-func parseConnection(raw string) *ActiveInternetConnection {
+func parseOneConnection(raw string) *ActiveInternetConnection {
 	if len(raw) <= 0 {
 		return nil
 	}

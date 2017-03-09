@@ -1,4 +1,4 @@
-package conn_parser
+package parser
 
 var (
 	DebugMode = false

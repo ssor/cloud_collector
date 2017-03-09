@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,12 +12,8 @@ import (
 
 	"net/http"
 
-	"strings"
-
-	"strconv"
-
 	"github.com/davecgh/go-spew/spew"
-	"github.com/ssor/cloud_collector/conn_parser"
+	"github.com/ssor/cloud_collector/parser"
 	"github.com/ssor/config"
 )
 
@@ -62,7 +57,7 @@ func main() {
 	}
 
 	f := func(cmd, metric string) {
-		statistics := DoConnStatistics(cmd)
+		statistics := doConnStatistics(cmd)
 		if statistics != nil {
 			PushStatisticsToMonitor(statistics, endPoint, metric)
 			// showStatistics(statistics, endPoint, metric)
@@ -88,93 +83,90 @@ func main() {
 	fmt.Println("[OK] Quit")
 }
 
-func truncatePrefix(raw string) (string, string) {
-	index := strings.Index(raw, ":::")
-	if index < 0 {
-		return "", ""
-	}
-	return raw[:index], raw[index+3:]
-}
-
-func DoConnStatistics(cmd string) map[string]int {
+func doConnStatistics(cmd string) parser.StatisticsResult {
 	fmt.Println("[OK] start statistics for ", cmd)
-	var statistics map[string]int
 
 	out, err := exec.Command(cmd).Output()
 	if err != nil {
 		fmt.Println("[ERR] Command err: ", err)
 		return nil
 	}
-	// if out != nil {
-	// 	if len(out) > 500 {
-	// 		fmt.Println("[OK] ", string(out)[:500])
-	// 	} else {
-	// 		fmt.Println("[OK] ", string(out))
-	// 	}
+	if out != nil {
+		if len(out) > 200 {
+			fmt.Println("[OK] ", string(out)[:200])
+		} else {
+			fmt.Println("[OK] ", string(out))
+		}
+	}
+	statistics, err := parser.Parse(string(out))
+	if err != nil {
+		fmt.Println("[ERR] Command err: ", err)
+		return nil
+	}
+	return statistics
+
+	// raw := string(out)
+	// prefix, left := truncatePrefix(raw)
+	// switch prefix {
+	// case "netstat":
+	// 	statistics = doStatisticsConnectToMongo([]byte(left))
+	// case "mongostat":
+	// 	statistics = doStatisticsOfMongoConn(left)
 	// }
-
-	raw := string(out)
-	prefix, left := truncatePrefix(raw)
-	switch prefix {
-	case "netstat":
-		statistics = doStatisticsConnectToMongo([]byte(left))
-	case "mongostat":
-		statistics = doStatisticsOfMongoConn(left)
-	}
-	return statistics
+	// return statistics
 
 }
 
-func doStatisticsOfMongoConn(raw string) map[string]int {
-	hostCounts := strings.Split(raw, "|")
-	// spew.Dump(hostCounts)
-	if len(hostCounts) <= 0 {
-		spew.Dump(raw)
-		return nil
-	}
-	statistics := make(map[string]int)
-	for _, hostCount := range hostCounts {
-		host, count, err := splitHostAndCount(hostCount)
-		if err != nil {
-			fmt.Println("[ERR] ", err)
-			continue
-		}
-		statistics[host] = count
-	}
-	return statistics
-}
+// func doStatisticsOfMongoConn(raw string) map[string]int {
+// 	hostCounts := strings.Split(raw, "|")
+// 	// spew.Dump(hostCounts)
+// 	if len(hostCounts) <= 0 {
+// 		spew.Dump(raw)
+// 		return nil
+// 	}
+// 	statistics := make(map[string]int)
+// 	for _, hostCount := range hostCounts {
+// 		host, count, err := splitHostAndCount(hostCount)
+// 		if err != nil {
+// 			fmt.Println("[ERR] ", err)
+// 			continue
+// 		}
+// 		statistics[host] = count
+// 	}
+// 	return statistics
+// }
 
-func splitHostAndCount(raw string) (string, int, error) {
-	list := strings.Split(raw, "->")
-	if len(list) < 2 {
-		spew.Dump(raw)
-		return "", -1, errors.New("data format error")
-	}
+// func splitHostAndCount(raw string) (string, int, error) {
+// 	list := strings.Split(raw, "->")
+// 	if len(list) < 2 {
+// 		spew.Dump(raw)
+// 		return "", -1, errors.New("data format error")
+// 	}
 
-	count, err := strconv.Atoi(list[1])
-	if err != nil {
-		fmt.Println("[Tip] not number for ", list[1])
-		spew.Dump(raw)
-		return "", -1, errors.New("data format error")
-	}
-	return list[0], count, nil
-}
+// 	count, err := strconv.Atoi(list[1])
+// 	if err != nil {
+// 		fmt.Println("[Tip] not number for ", list[1])
+// 		spew.Dump(raw)
+// 		return "", -1, errors.New("data format error")
+// 	}
+// 	return list[0], count, nil
+// }
 
-func doStatisticsConnectToMongo(raw []byte) map[string]int {
-	connections, err := conn_parser.Parse(raw)
-	if err != nil {
-		fmt.Println("[ERR] parse data err: ", err)
-		return nil
-	}
+// func doStatisticsConnectToMongo(raw []byte) map[string]int {
+// 	connections, err := conn_parser.Parse(raw)
+// 	if err != nil {
+// 		fmt.Println("[ERR] parse data err: ", err)
+// 		return nil
+// 	}
 
-	isConnectingToMongo := func(port interface{}) bool {
-		if port == nil {
-			return false
-		}
-		return port == "27017"
-	}
-	return conn_parser.NewConnectionTree(isConnectingToMongo).SortToTree(connections).ConnStatistics()
-}
+// 	isConnectingToMongo := func(port interface{}) bool {
+// 		if port == nil {
+// 			return false
+// 		}
+// 		return port == "27017"
+// 	}
+// 	return conn_parser.NewConnectionTree(isConnectingToMongo).SortToTree(connections).ConnStatistics()
+// }
 
 func showStatistics(statistics map[string]int, endPoint, metricPrefix string) {
 	if statistics == nil {
@@ -188,7 +180,7 @@ func showStatistics(statistics map[string]int, endPoint, metricPrefix string) {
 		fmt.Println("metric : ", metricPrefix+key, " -> ", count)
 	}
 }
-func PushStatisticsToMonitor(statistics map[string]int, endPoint, metricPrefix string) {
+func PushStatisticsToMonitor(statistics parser.StatisticsResult, endPoint, metricPrefix string) {
 	if statistics == nil {
 		fmt.Println("[Tip] no statistics to push")
 		return
@@ -294,3 +286,11 @@ func New_FalconMessage(endpoint, metric string, timestamp, step, value int) *Fal
 	}
 	return msg
 }
+
+// func truncatePrefix(raw string) (string, string) {
+// 	index := strings.Index(raw, ":::")
+// 	if index < 0 {
+// 		return "", ""
+// 	}
+// 	return raw[:index], raw[index+3:]
+// }

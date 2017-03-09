@@ -2,7 +2,7 @@ import os
 import shutil
 
 # set files and paths that should be exclued from release files
-ignoredDirs = ["conn_parser", "data", "release"]
+ignoredDirs = ["parser", "data", "release"]
 ignoredFiles = ["build_release.py", "main.go", "README.md", "conf/config.json"]
 ignoredPaths = []
 
